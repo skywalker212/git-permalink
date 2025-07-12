@@ -2,7 +2,7 @@
   "name": "git-permalink",
   "displayName": "Statusbar Copy Permalink",
   "description": "Adds status bar button for copying permalinks",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "icon": "icon.png",
   "publisher": "akashgajjar",
   "repository": "github:skywalker212/git-permalink",

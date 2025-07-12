@@ -36,11 +36,9 @@ export async function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
 		vscode.window.onDidChangeActiveTextEditor(() => {
 			const editor = vscode.window.activeTextEditor;
-			if (editor) {
-				currentRepo = git.repositories.find((repo: any) =>
-					editor.document.uri.fsPath.startsWith(repo.rootUri.fsPath)
-				);
-			}
+			currentRepo = git.repositories.find((repo: any) =>
+				editor && editor.document.uri.fsPath.startsWith(repo.rootUri.fsPath)
+			);
 			updateStatus();
 		})
 	);
@@ -59,20 +57,28 @@ export async function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 
-		const { start, end } = { start: editor.selection.start.line + 1, end: editor.selection.end.line + 1 };
+		const start = editor.selection.start.line + 1;
+		const end = editor.selection.end.line + 1;
 		const relPath = path.relative(currentRepo.rootUri.fsPath, editor.document.uri.fsPath).replace(/\\/g, '/');
 
 		const head = currentRepo.state.HEAD;
 		const commit = head?.commit;
+		const branch = head?.name;
 		const remote = currentRepo.state.remotes[0];
 		const url = remote?.pushUrl || remote?.fetchUrl;
 
-		if (!commit || !url) {
-			vscode.window.showErrorMessage('Could not determine remote URL or commit hash.');
+		if (!url) {
+			vscode.window.showErrorMessage('Could not determine remote URL.');
 			return;
 		}
 
-		const link = createPermalink(url, commit, relPath, start, end);
+		const ref = commit || branch;
+		if (!ref) {
+			vscode.window.showErrorMessage('Could not determine commit hash or branch name.');
+			return;
+		}
+
+		const link = createPermalink(url, ref, relPath, start, end);
 		await vscode.env.clipboard.writeText(link);
 		vscode.window.showInformationMessage('Permalink copied to clipboard!');
 	});
@@ -88,7 +94,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 export function createPermalink(
 	remoteUrl: string,
-	commitHash: string,
+	ref: string,
 	filePath: string,
 	startLine: number,
 	endLine: number
@@ -98,30 +104,25 @@ export function createPermalink(
 		url = 'https://' + url.substring(4).replace(':', '/');
 	}
 
-	if (/github\.com|gitlab\.com/.test(url)) {
-		let link = `${url}/blob/${commitHash}/${filePath}`;
-		if (startLine) {
-			link += `#L${startLine}`;
-			if (endLine && endLine !== startLine) { link += `-L${endLine}`; }
-		}
-		return link;
-	}
-
 	if (url.includes('bitbucket.org')) {
-		let link = `${url}/src/${commitHash}/${filePath}`;
+		let link = `${url}/src/${ref}/${filePath}`;
 		if (startLine) {
 			link += `#lines-${startLine}`;
-			if (endLine && endLine !== startLine) { link += `:${endLine}`; }
+			if (endLine && endLine !== startLine) {
+				link += `:${endLine}`;
+			}
+		}
+		return link;
+	} else {
+		let link = `${url}/blob/${ref}/${filePath}`;
+		if (startLine) {
+			link += `#L${startLine}`;
+			if (endLine && endLine !== startLine) {
+				link += `-L${endLine}`;
+			}
 		}
 		return link;
 	}
-
-	let link = `${url}/blob/${commitHash}/${filePath}`;
-	if (startLine) {
-		link += `#L${startLine}`;
-		if (endLine && endLine !== startLine) { link += `-L${endLine}`; }
-	}
-	return link;
 }
 
 export function deactivate() { }
