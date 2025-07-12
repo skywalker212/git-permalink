@@ -1,8 +1,9 @@
 {
   "name": "git-permalink",
-  "displayName": "git-permalink",
-  "description": "Easy git permalinks",
-  "version": "0.0.1",
+  "displayName": "Statusbar Copy Permalink",
+  "description": "Adds status bar button for copying permalinks",
+  "version": "0.0.2",
+  "icon": "icon.png",
   "publisher": "akashgajjar",
   "repository": "github:skywalker212/git-permalink",
   "engines": {
