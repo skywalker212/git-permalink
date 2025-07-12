@@ -1,71 +1,30 @@
-# git-permalink README
+# git-permalink
 
-This is the README for your extension "git-permalink". After writing up a brief description, we recommend including the following sections.
+A lightweight VS Code extension that lets you copy a permanent link to the current file (and selected lines) at the exact Git commit you’re working on. Supports GitHub, GitLab, and Bitbucket remotes out of the box.
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+- **Copy permalink for any file & selection**  
+  Select one or more lines in your editor, or simply place the cursor anywhere, then click **Copy Permalink** in the status bar (or run the **Git Permalink: Copy Permalink** command).
 
-For example if there is an image subfolder under your extension project workspace:
-
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+- **Line-range highlighting**  
+  If you select multiple lines, the generated URL will highlight the entire range (e.g. `#L10-L20` on GitHub/GitLab, `#lines-10:20` on Bitbucket).  
 
 ## Requirements
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+- [Git CLI](https://git-scm.com/) must be installed and available on your system `PATH`.
+- Your project must be a Git repository with a configured `origin` remote.
 
 ## Extension Settings
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
-
-For example:
-
-This extension contributes the following settings:
-
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+This extension does **not** add any new settings in your `settings.json`.  
+All behavior is automatic; just install and start copying permalinks.
 
 ## Known Issues
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
-
-## Release Notes
-
-Users appreciate release notes as you update your extension.
-
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
-
----
-
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+- **No workspace folder**  
+  If you open a single file without a workspace, the extension cannot determine the repo root and will show an error.
+- **Unusual remotes**  
+  Only remotes named `origin` are supported. If your remote is named differently, you can either rename it or modify the code to point to your remote name.
+- **Non-standard repository layouts**  
+  Submodules and nested git repos may produce unexpected relative paths.
