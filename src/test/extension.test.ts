@@ -1,54 +1,7 @@
 import * as assert from 'assert';
-import * as sinon from 'sinon';
-import * as cp from 'child_process';
-import { getRemoteUrl, getCommitHash, createPermalink } from '../extension';
+import { createPermalink } from '../extension';
 
 suite('Extension Test Suite', () => {
-
-	suite('Git Helpers', () => {
-		let execStub: sinon.SinonStub;
-
-		suiteSetup(() => {
-			execStub = sinon.stub();
-			execStub = sinon.stub(cp, 'exec');
-		});
-
-		test('getRemoteUrl resolves a trimmed .git URL', async () => {
-			execStub.yields(null, 'https://github.com/user/repo.git\n', '');
-			const url = await getRemoteUrl('/some/repo');
-			assert.strictEqual(url, 'https://github.com/user/repo.git');
-		});
-
-		test('getRemoteUrl rejects if exec errors', async () => {
-			execStub.yields(new Error('fatal'), '', '');
-			await assert.rejects(
-				() => getRemoteUrl('/some/repo'),
-				{ message: 'Could not get remote URL. Is this a git repository?' }
-			);
-		});
-
-		test('getRemoteUrl rejects on stderr output', async () => {
-			execStub.yields(null, '', 'something went wrong');
-			await assert.rejects(
-				() => getRemoteUrl('/some/repo'),
-				{ message: 'something went wrong' }
-			);
-		});
-
-		test('getCommitHash resolves a trimmed hash', async () => {
-			execStub.yields(null, 'abcdef1234567890\n', '');
-			const hash = await getCommitHash('/some/repo');
-			assert.strictEqual(hash, 'abcdef1234567890');
-		});
-
-		test('getCommitHash rejects if exec errors', async () => {
-			execStub.yields(new Error('fatal'), '', '');
-			await assert.rejects(
-				() => getCommitHash('/some/repo'),
-				{ message: 'Could not get commit hash.' }
-			);
-		});
-	});
 
 	suite('createPermalink', () => {
 		test('GitHub HTTPS URL, single line', () => {

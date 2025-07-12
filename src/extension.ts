@@ -1,112 +1,117 @@
 import * as vscode from 'vscode';
-import { exec } from 'child_process';
 import * as path from 'path';
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
+	const gitExt = vscode.extensions.getExtension<any>('vscode.git');
+	if (!gitExt) {
+		console.warn('Git extension not found; permalink disabled.');
+		return;
+	}
 
-	const commandId = "git-permalink.copyPermalink";
+	const git = gitExt.exports.getAPI(1);
+	const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+	statusBarItem.command = 'git-permalink.copyPermalink';
+	statusBarItem.text = '$(link) Copy Permalink';
+	context.subscriptions.push(statusBarItem);
 
-	let disposable = vscode.commands.registerCommand(commandId, async () => {
+	let currentRepo: any;
+
+	const updateStatus = () => {
 		const editor = vscode.window.activeTextEditor;
-		if (!editor) {
-			vscode.window.showErrorMessage('No active editor found.');
+		if (!editor || !currentRepo) {
+			statusBarItem.hide();
+			vscode.commands.executeCommand('setContext', 'git-permalink.isChecked', false);
+			return;
+		}
+		const root = currentRepo.rootUri.fsPath;
+		if (!editor.document.uri.fsPath.startsWith(root)) {
+			statusBarItem.hide();
+			vscode.commands.executeCommand('setContext', 'git-permalink.isChecked', false);
+			return;
+		}
+		vscode.commands.executeCommand('setContext', 'git-permalink.isChecked', true);
+		statusBarItem.show();
+	};
+
+	context.subscriptions.push(
+		vscode.window.onDidChangeActiveTextEditor(() => {
+			const editor = vscode.window.activeTextEditor;
+			if (editor) {
+				currentRepo = git.repositories.find((repo: any) =>
+					editor.document.uri.fsPath.startsWith(repo.rootUri.fsPath)
+				);
+			}
+			updateStatus();
+		})
+	);
+
+	context.subscriptions.push(
+		git.onDidOpenRepository((repo: any) => {
+			currentRepo = repo;
+			updateStatus();
+		})
+	);
+
+	const disposable = vscode.commands.registerCommand('git-permalink.copyPermalink', async () => {
+		const editor = vscode.window.activeTextEditor;
+		if (!editor || !currentRepo) {
+			vscode.window.showErrorMessage('No Git repository or active editor available.');
 			return;
 		}
 
-		const selection = editor.selection;
-		const startLine = selection.start.line + 1;
-		const endLine = selection.end.line + 1;
+		const { start, end } = { start: editor.selection.start.line + 1, end: editor.selection.end.line + 1 };
+		const relPath = path.relative(currentRepo.rootUri.fsPath, editor.document.uri.fsPath).replace(/\\/g, '/');
 
-		const filePath = editor.document.uri.fsPath;
-		const workspaceFolder = vscode.workspace.getWorkspaceFolder(editor.document.uri);
+		const head = currentRepo.state.HEAD;
+		const commit = head?.commit;
+		const remote = currentRepo.state.remotes[0];
+		const url = remote?.pushUrl || remote?.fetchUrl;
 
-		if (!workspaceFolder) {
-			vscode.window.showErrorMessage('No workspace folder found for the current file.');
+		if (!commit || !url) {
+			vscode.window.showErrorMessage('Could not determine remote URL or commit hash.');
 			return;
 		}
 
-		const repoPath = workspaceFolder.uri.fsPath;
-
-		try {
-			const remoteUrl = await getRemoteUrl(repoPath);
-			const commitHash = await getCommitHash(repoPath);
-			const relativePath = path.relative(repoPath, filePath).replace(/\\/g, '/');
-
-			if (remoteUrl) {
-				const permalink = createPermalink(remoteUrl, commitHash, relativePath, startLine, endLine);
-				await vscode.env.clipboard.writeText(permalink);
-				vscode.window.showInformationMessage('Permalink copied to clipboard!');
-			}
-		} catch (error) {
-			if (error instanceof Error) {
-				vscode.window.showErrorMessage(`Error generating permalink: ${error.message}`);
-			} else {
-				vscode.window.showErrorMessage(`An unknown error occurred while generating the permalink.`);
-			}
-		}
+		const link = createPermalink(url, commit, relPath, start, end);
+		await vscode.env.clipboard.writeText(link);
+		vscode.window.showInformationMessage('Permalink copied to clipboard!');
 	});
-
 	context.subscriptions.push(disposable);
 
-	const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-	statusBarItem.command = commandId;
-	statusBarItem.text = "$(link) Copy Permalink";
-	statusBarItem.show();
-	context.subscriptions.push(statusBarItem);
+	if (vscode.window.activeTextEditor) {
+		currentRepo = git.repositories.find((repo: any) =>
+			vscode.window.activeTextEditor!.document.uri.fsPath.startsWith(repo.rootUri.fsPath)
+		);
+	}
+	updateStatus();
 }
 
-export function getRemoteUrl(repoPath: string): Promise<string> {
-	return new Promise((resolve, reject) => {
-		exec('git config --get remote.origin.url', { cwd: repoPath }, (err, stdout, stderr) => {
-			if (err) {
-				return reject(new Error('Could not get remote URL. Is this a git repository?'));
-			}
-			if (stderr) {
-				return reject(new Error(stderr));
-			}
-			resolve(stdout.trim());
-		});
-	});
-}
-
-export function getCommitHash(repoPath: string): Promise<string> {
-	return new Promise((resolve, reject) => {
-		exec('git rev-parse HEAD', { cwd: repoPath }, (err, stdout, stderr) => {
-			if (err) {
-				return reject(new Error('Could not get commit hash.'));
-			}
-			if (stderr) {
-				return reject(new Error(stderr));
-			}
-			resolve(stdout.trim());
-		});
-	});
-}
-
-export function createPermalink(remoteUrl: string, commitHash: string, filePath: string, startLine: number, endLine: number): string {
-	filePath = filePath.replace(/\\/g, '/');
+export function createPermalink(
+	remoteUrl: string,
+	commitHash: string,
+	filePath: string,
+	startLine: number,
+	endLine: number
+): string {
 	let url = remoteUrl.replace(/\.git$/, '');
-
 	if (url.startsWith('git@')) {
 		url = 'https://' + url.substring(4).replace(':', '/');
 	}
 
-	if (url.includes('github.com') || url.includes('gitlab.com')) {
+	if (/github\.com|gitlab\.com/.test(url)) {
 		let link = `${url}/blob/${commitHash}/${filePath}`;
 		if (startLine) {
 			link += `#L${startLine}`;
-			if (endLine && endLine !== startLine) {
-				link += `-L${endLine}`;
-			}
+			if (endLine && endLine !== startLine) { link += `-L${endLine}`; }
 		}
 		return link;
-	} else if (url.includes('bitbucket.org')) {
+	}
+
+	if (url.includes('bitbucket.org')) {
 		let link = `${url}/src/${commitHash}/${filePath}`;
 		if (startLine) {
 			link += `#lines-${startLine}`;
-			if (endLine && endLine !== startLine) {
-				link += `:${endLine}`;
-			}
+			if (endLine && endLine !== startLine) { link += `:${endLine}`; }
 		}
 		return link;
 	}
@@ -114,12 +119,9 @@ export function createPermalink(remoteUrl: string, commitHash: string, filePath:
 	let link = `${url}/blob/${commitHash}/${filePath}`;
 	if (startLine) {
 		link += `#L${startLine}`;
-		if (endLine && endLine !== startLine) {
-			link += `-L${endLine}`;
-		}
+		if (endLine && endLine !== startLine) { link += `-L${endLine}`; }
 	}
 	return link;
 }
-
 
 export function deactivate() { }

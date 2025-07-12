@@ -2,7 +2,7 @@
   "name": "git-permalink",
   "displayName": "Statusbar Copy Permalink",
   "description": "Adds status bar button for copying permalinks",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "icon": "icon.png",
   "publisher": "akashgajjar",
   "repository": "github:skywalker212/git-permalink",
@@ -13,9 +13,12 @@
     "Other"
   ],
   "activationEvents": [
-    "onStartupFinished"
+    "workspaceContains:.git"
   ],
   "main": "./out/extension.js",
+  "extensionDependencies": [
+    "vscode.git"
+  ],
   "contributes": {
     "commands": [
       {
@@ -26,7 +29,7 @@
     "menus": {
       "editor/context": [
         {
-          "when": "editorHasSelection && resourceScheme == 'file'",
+          "when": "resourceScheme == 'file' && git-permalink.isChecked",
           "command": "git-permalink.copyPermalink",
           "group": "navigation"
         }
@@ -43,14 +46,12 @@
   },
   "devDependencies": {
     "@types/node": "^20.19.7",
-    "@types/sinon": "^17.0.4",
     "@types/vscode": "^1.73.0",
     "@typescript-eslint/eslint-plugin": "^8.31.1",
     "@typescript-eslint/parser": "^8.31.1",
     "@vscode/test-cli": "^0.0.11",
     "@vscode/test-electron": "^2.5.2",
     "eslint": "^9.25.1",
-    "sinon": "^21.0.0",
     "typescript": "^5.8.3"
   }
 }
