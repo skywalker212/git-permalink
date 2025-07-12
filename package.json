@@ -3,6 +3,7 @@
   "displayName": "git-permalink",
   "description": "Easy git permalinks",
   "version": "0.0.1",
+  "repository": "github:skywalker212/git-permalink",
   "engines": {
     "vscode": "^1.73.0"
   },
